@@ -1,0 +1,60 @@
+# Enterprise-Grade Flutter Web Deployment to Vercel
+
+This plan outlines a robust, production-ready setup for deploying the Flutter web version of this project to Vercel using GitHub Actions. It includes caching for faster builds, separation between production and preview environments, and performance optimizations.
+
+## Proposed Setup & Changes
+
+### 1. Prerequisites (Vercel Project Initialization)
+Before the GitHub Action can run, the Project must be initialized on Vercel to obtain the necessary IDs.
+- *Action required by User*: Install Vercel CLI (`npm i -g vercel`), run `vercel link` in the project root to create the project, and retrieve the `projectId` and `orgId` from `.vercel/project.json`.
+
+### 2. Required GitHub Secrets
+You will need to configure the following secrets in your GitHub repository (`Settings` > `Secrets and variables` > `Actions`):
+- `VERCEL_TOKEN`: Your Vercel Personal Access Token (Create at vercel.com/account/tokens).
+- `VERCEL_ORG_ID`: Your Vercel Organization ID.
+- `VERCEL_PROJECT_ID`: Your Vercel Project ID.
+
+### 3. Configuration Files
+
+#### [NEW] [vercel.json](file:///c:/Projects/ApplicationDevelopment/Clients/mobile-demo/vercel.json)
+Configure Vercel to act as a Single Page Application (SPA) and apply caching headers for aggressive caching of static assets to improve load times.
+
+```json
+{
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ],
+  "headers": [
+    {
+      "source": "/(.*).(js|css|png|jpg|jpeg|gif|woff|woff2|ttf|svg)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    }
+  ]
+}
+```
+
+#### [NEW] [.github/workflows/deploy.yml](file:///c:/Projects/ApplicationDevelopment/Clients/mobile-demo/.github/workflows/deploy.yml)
+Define the GitHub Action workflow. This workflow will feature:
+- **Trigger**: Runs on pushes to the `main` branch.
+- **Caching**: Uses `actions/cache` for the Pub cache to dramatically speed up subsequent runs.
+- **Flutter Setup**: Uses `subosito/flutter-action` to install the correct Flutter SDK version (matching `pubspec.yaml`).
+- **Build Optimization**: Builds with the `--release` tag and `--web-renderer canvaskit` (or `auto`) for optimal performance.
+- **Deployment**: Uses `amondnet/vercel-action` to push the `build/web` artifact directly to Vercel as a Production deployment.
+
+### 4. Continuous Integration (Optional but Recommended)
+A separate job or workflow can be defined to run `flutter test` and `flutter analyze` on Pull Requests *before* allowing merges to `main`.
+
+## Verification Plan
+
+### Automated Verification
+- Commit and push the new configuration files to the `main` branch.
+- Navigate to the **Actions** tab in GitHub to monitor the workflow execution.
+- Ensure the workflow completes without errors, specifically the Flutter Build and Vercel Deploy steps.
+
+### Manual Verification
+- Once the Action succeeds, visit the corresponding Vercel Production URL.
+- Verify the app loads correctly.
+- Test SPA routing by navigating to an internal route, refreshing the page, and ensuring it does not return a 404 error.
+- Check browser developer tools (Network tab) to confirm static assets are being served with the correct Cache-Control headers.
